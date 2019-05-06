@@ -59,6 +59,29 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         
         images.insert(image, at: 0)
         collectionView.reloadData()
+        
+        // 1. check that we have an active session
+        guard let mcSession = mcSession else { return }
+        
+        // 2. check if there are any peers to send to
+        if mcSession.connectedPeers.count > 0 {
+            // 3. convert the new image to a Data object
+            if let imageData = image.pngData() {
+                // 4. send it to all peers, ensuring it gets delivered
+                do {
+                    try mcSession.send(imageData, toPeers: mcSession.connectedPeers, with: .reliable)
+                } catch {
+                    // 5. show an error message if there's a problem
+                    let errorAC = UIAlertController(title: "Send error", message: error.localizedDescription, preferredStyle: .alert)
+                    errorAC.addAction(UIAlertAction(title: "OK", style: .default))
+                    
+                    present(errorAC, animated: true)
+                }
+            }
+        }
+        
+        
+        
     }
 
     // MARK: - P2P Methods
@@ -75,7 +98,7 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         guard let mcSession = mcSession else { return }
         
         mcAdvertiserAssistant = MCAdvertiserAssistant(serviceType: "hws-project25", discoveryInfo: nil, session: mcSession)
-        // mcAdvertiserAssistant?.start()
+         mcAdvertiserAssistant?.start()
     }
     
     func joinSession(action: UIAlertAction) {
@@ -85,6 +108,46 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         mcBrowser.delegate = self
         
         present(mcBrowser, animated: true)
+    }
+    
+    // MARK: - MCSession delegate methods
+    func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
+        switch state {
+        case .connected: print("Connected: \(peerID.displayName)")
+        case .connecting: print("Connecting: \(peerID.displayName)")
+        case .notConnected: print("Not connected: \(peerID.displayName)")
+        @unknown default: print("Unkown state received: \(peerID.displayName)")
+        }
+    }
+    
+    func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
+        DispatchQueue.main.async { [weak self] in
+            if let image = UIImage(data: data) {
+                self?.images.insert(image, at: 0)
+                self?.collectionView.reloadData()
+            }
+        }
+    }
+    
+    func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {
+        // leave empty
+    }
+    
+    func session(_ session: MCSession, didStartReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, with progress: Progress) {
+        // leave empty
+    }
+    
+    func session(_ session: MCSession, didFinishReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, at localURL: URL?, withError error: Error?) {
+        // leave empty
+    }
+    
+    // MARK: - MCBrowserVC delegate methods
+    func browserViewControllerDidFinish(_ browserViewController: MCBrowserViewController) {
+        dismiss(animated: true)
+    }
+    
+    func browserViewControllerWasCancelled(_ browserViewController: MCBrowserViewController) {
+        dismiss(animated: true)
     }
 }
 
