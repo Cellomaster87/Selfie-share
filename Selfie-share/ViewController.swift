@@ -25,6 +25,10 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .camera, target: self, action: #selector(importPicture))
         navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(showConnectionPrompt))
         
+        let flexibleSpaceButton = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: self, action: nil)
+        let messageButton = UIBarButtonItem(title: "Send message", style: .plain, target: self, action: #selector(writeMessage))
+        toolbarItems = [flexibleSpaceButton, messageButton]
+        
         mcSession = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .required)
         mcSession?.delegate = self
     }
@@ -79,6 +83,31 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
                 }
             }
         }
+    }
+    
+    @objc func writeMessage() {
+        let messageAC = UIAlertController(title: "Send a message", message: "Type your message and hit Send to share it with your peers!", preferredStyle: .alert)
+        messageAC.addTextField()
+        
+        let sendAction = UIAlertAction(title: "Send", style: .default) { [weak self, weak messageAC] action in
+            guard let message = messageAC?.textFields?[0].text else { return }
+            guard let mcSession = self?.mcSession else { return }
+            
+            let messageData = Data(message.utf8)
+            do {
+                try self?.mcSession?.send(messageData, toPeers: mcSession.connectedPeers, with: .reliable)
+            } catch {
+                let errorAC = UIAlertController(title: "Send error", message: error.localizedDescription, preferredStyle: .alert)
+                errorAC.addAction(UIAlertAction(title: "OK", style: .default))
+                
+                self?.present(errorAC, animated: true)
+            }
+        }
+        
+        messageAC.addAction(sendAction)
+        messageAC.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        present(messageAC, animated: true)
     }
 
     // MARK: - P2P Methods
@@ -136,6 +165,17 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
             if let image = UIImage(data: data) {
                 self?.images.insert(image, at: 0)
                 self?.collectionView.reloadData()
+            } else {
+                let message = String(decoding: data, as: UTF8.self)
+                
+                let receivedMessageAC = UIAlertController(title: "New incoming message", message: "\(peerID.displayName) sent the following message:\n\(message)", preferredStyle: .alert)
+                receivedMessageAC.addAction(UIAlertAction(title: "Got it!", style: .default, handler: nil))
+                
+                receivedMessageAC.addAction(UIAlertAction(title: "Reply", style: .default, handler: { [weak self] (action) in
+                    self?.writeMessage()
+                }))
+                
+                self?.present(receivedMessageAC, animated: true)
             }
         }
     }
