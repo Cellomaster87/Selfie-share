@@ -27,7 +27,8 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         
         let flexibleSpaceButton = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: self, action: nil)
         let messageButton = UIBarButtonItem(title: "Send message", style: .plain, target: self, action: #selector(writeMessage))
-        toolbarItems = [flexibleSpaceButton, messageButton]
+        let peerListButton = UIBarButtonItem(title: "Peers", style: .plain, target: self, action: #selector(showPeers))
+        toolbarItems = [peerListButton, flexibleSpaceButton, messageButton]
         
         mcSession = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .required)
         mcSession?.delegate = self
@@ -108,6 +109,16 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         messageAC.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         
         present(messageAC, animated: true)
+    }
+    
+    @objc func showPeers() {
+        guard let mcSession = mcSession else { return }
+        guard !mcSession.connectedPeers.isEmpty else { return }
+        
+        let peersAC = UIAlertController(title: "Peer List", message: "\(mcSession.connectedPeers)", preferredStyle: .alert)
+        peersAC.addAction(UIAlertAction(title: "Close", style: .default))
+        
+        present(peersAC, animated: true)
     }
 
     // MARK: - P2P Methods
