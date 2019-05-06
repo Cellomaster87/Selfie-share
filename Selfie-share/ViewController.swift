@@ -79,9 +79,6 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
                 }
             }
         }
-        
-        
-        
     }
 
     // MARK: - P2P Methods
@@ -89,6 +86,7 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         let connectionAC = UIAlertController(title: "Connect to others", message: nil, preferredStyle: .alert)
         connectionAC.addAction(UIAlertAction(title: "Host a session", style: .default, handler: startHosting))
         connectionAC.addAction(UIAlertAction(title: "Join a session", style: .default, handler: joinSession))
+        connectionAC.addAction(UIAlertAction(title: "Leave the session", style: .default, handler: leaveSession))
         connectionAC.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         
         present(connectionAC, animated: true)
@@ -98,7 +96,7 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         guard let mcSession = mcSession else { return }
         
         mcAdvertiserAssistant = MCAdvertiserAssistant(serviceType: "hws-project25", discoveryInfo: nil, session: mcSession)
-         mcAdvertiserAssistant?.start()
+        mcAdvertiserAssistant?.start()
     }
     
     func joinSession(action: UIAlertAction) {
@@ -109,13 +107,26 @@ class ViewController: UICollectionViewController, UINavigationControllerDelegate
         
         present(mcBrowser, animated: true)
     }
+
+    func leaveSession(action: UIAlertAction) {
+        guard let mcSession = mcSession else { return }
+        
+        mcSession.disconnect()
+    }
     
     // MARK: - MCSession delegate methods
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         switch state {
         case .connected: print("Connected: \(peerID.displayName)")
         case .connecting: print("Connecting: \(peerID.displayName)")
-        case .notConnected: print("Not connected: \(peerID.displayName)")
+        case .notConnected:
+            DispatchQueue.main.async { [weak self] in
+                let notConnectedAC = UIAlertController(title: "Disconnected!", message: "\(peerID.displayName) has left the network", preferredStyle: .alert)
+                notConnectedAC.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+                self?.present(notConnectedAC, animated: true, completion: nil)
+            }
+            
+            print("Not connected: \(peerID.displayName)")
         @unknown default: print("Unkown state received: \(peerID.displayName)")
         }
     }
